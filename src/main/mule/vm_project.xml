@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="062cd2a0-3e35-4b92-b489-e9e5c8a24eb4" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="043dacb2-2079-46a6-86d2-eca9d7cf90cc" >
+		<vm:queues >
+			<vm:queue queueName="vmq1" />
+			<vm:queue queueName="vmq2" />
+		</vm:queues>
+	</vm:config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="ff970429-7d7a-4a0c-83ac-383eebcf830a" >
+		<http:request-connection host="jsonplaceholder.typicode.com" />
+	</http:request-config>
+	<flow name="vm_publish" doc:id="85c6443d-241f-4f43-be16-590026e2b5b4" >
+		<http:listener doc:name="Listener" doc:id="6877ff06-9083-4814-afe1-9c915fa976c1" config-ref="HTTP_Listener_config" path="/vm"/>
+		<choice doc:name="Choice" doc:id="697446bb-16b9-410e-97f4-a7536b9b8988" >
+			<when expression='#[attributes.queryParams.value=="VM1"]'>
+				<vm:publish queueName="vmq1" doc:name="Publish" doc:id="ad1623ea-1299-4bd8-8b68-69f74f17d58e" config-ref="VM_Config" />
+			</when>
+			<when expression='#[attributes.queryParams.value=="VM2"]'>
+				<vm:publish queueName="vmq2" doc:name="Publish" doc:id="2ed3bdf9-5b43-44ec-a8b9-3d1bc395f9f0" config-ref="VM_Config" />
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="65233012-f4cb-4153-bb99-10e95652a7ef" message="Execution Failed"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="vm_consume" doc:id="bb5491a1-e117-485c-86da-4f56554e10fe" >
+		<http:listener doc:name="Listener" doc:id="bc26594e-69dc-4e7b-a010-b29e588db3c3" config-ref="HTTP_Listener_config" path="/consume"/>
+		<choice doc:name="Choice" doc:id="a5839400-3eb1-4fa4-bdbf-08429bd12d91" >
+			<when expression='attributes.queryParams.value=="VM1"'>
+				<vm:consume queueName="vmq1" doc:name="Consume" doc:id="33cdb9d8-1eed-403b-b2a0-c688dd902757" config-ref="VM_Config" />
+			</when>
+			<when expression='#[attributes.queryParams.value=="VM2"]'>
+				<vm:consume doc:name="Consume" doc:id="71136823-8c3b-4b43-b4a7-2dbaed8fb6b0" config-ref="VM_Config" queueName="vmq2"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="8a1a565b-33a1-46a6-b7ce-c69ec41cfa10" message="Consume Service failed"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="vm_PublishConsume" doc:id="c6a9bfc6-5d04-4fde-b9d2-11eda2c8aeaf" >
+		<http:listener doc:name="Listener" doc:id="a0560681-ab69-4b9d-a009-8f4e49c53578" config-ref="HTTP_Listener_config" path="/pc"/>
+		<choice doc:name="Choice" doc:id="42a60a34-caaf-4f6e-9694-06c355d55381" >
+			<when expression='#[attributes.queryParams.value=="VM1"]'>
+				<vm:publish-consume queueName="vmq1" doc:name="Publish consume" doc:id="0ba40a59-b45b-48c7-a82a-cf76a5f8db02" config-ref="VM_Config" />
+				<logger level="INFO" doc:name="Logger" doc:id="272c6952-b3df-4421-a5cd-0b0def1fb320" message="#[payload]" />
+			</when>
+			<when expression='#[attributes.queryParams.value=="VM2"]'>
+				<vm:publish-consume doc:name="Publish consume" doc:id="98f8af65-bfd8-45ff-b21c-77dcf3383b8f" config-ref="VM_Config" queueName="vmq2"/>
+				<logger level="INFO" doc:name="Logger" doc:id="b22d1c5e-57c2-4492-9dc3-b24acf9a68e1" message="#[payload]"/>
+			</when>
+			<otherwise >
+				<set-payload value="Transaction Failed" doc:name="Set Payload" doc:id="08a9aadd-d4cd-4026-b464-bebe63c3098a" />
+				<logger level="INFO" doc:name="Logger" doc:id="68ec187b-7312-4553-8a84-53d4b92c5575" message="#[payload]" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="vm_VMListener_WebRequest" doc:id="e38e5373-e2f7-42e5-8cec-8a3bf0f14a8e" >
+		<vm:listener queueName="vmq1" doc:name="Listener" doc:id="44162345-fcc6-45c6-a91a-0e81895fe349" config-ref="VM_Config"/>
+		<http:request method="GET" doc:name="Request" doc:id="7964b0e3-1f6b-4f81-86ef-2ec779cab2a7" config-ref="HTTP_Request_configuration" path="/users"/>
+	</flow>
+	<flow name="vm_VMListener" doc:id="459a9e39-3690-47fd-96c9-9558f18980fc" >
+		<vm:listener doc:name="Listener" doc:id="9606948e-faab-435c-ac4b-4ff98a393da5" config-ref="VM_Config" queueName="vmq2"/>
+		<set-payload value="This is Payload from VM Listener flow" doc:name="Set Payload" doc:id="2d4302db-1c21-4f31-89a6-5450ef18a383" />
+	</flow>
+</mule>
